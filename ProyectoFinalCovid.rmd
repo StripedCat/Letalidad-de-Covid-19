@@ -1,5 +1,5 @@
 ---
-title: "Análisis comparativo de la letalidad por COVID-19 en los países del mundo"
+title: "Análisis comparativo de la letalidad por COVID-19 en los países del mundo y Mexico"
 author: "Gerardo C. Garcia Ortiz |  Yadhira Ortiz Covarrubias"
 date: "11/23/2020"
 output: beamer_presentation
