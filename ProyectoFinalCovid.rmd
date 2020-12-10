@@ -1,0 +1,531 @@
+---
+title: "Análisis comparativo de la letalidad por COVID-19 en los países del mundo"
+author: "Gerardo C. Garcia Ortiz |  Yadhira Ortiz Covarrubias"
+date: "11/23/2020"
+output: beamer_presentation
+theme: Default
+colortheme: seahorse
+fontsize: 12pt
+---
+
+```{r setup, include = FALSE}
+knitr::opts_chunk$set(echo = FALSE,
+                      warning = FALSE,
+                      message = FALSE,
+                      fig.show = TRUE)
+library(xml2)
+library(rvest)
+library(dplyr)
+library(ggplot2)
+library(knitr)
+library(ggfortify)
+library(corrplot)
+library(qgraph)
+```
+
+# INTRODUCCIÓN.
+
+## ¿Qué es la letalidad?
+
+- Es una medida o índice que se utiliza para referirse al número de muertes producidas por una determinada enfermedad en relación con el número de individuos afectados de dicha enfermedad.
+
+\captionsetup[figure]{labelformat=empty}
+![¿Como se estima la letalidad?](C:\Users\Gera PC\Documents\CienciaDatos\let.png){width=70%}
+
+# ¿Cuál es la diferencia entre la letalidad y mortalidad?
+
+Ambos hablan de muertes, sin embargo, en distintos "tipos" o "clases" de poblaciones.
+
+- **Mortalidad**: Cociente entre el número de muertos durante un periodo de tiempo y la poblacion media de ese periodo. 
+- **Letalidad** : Cociente entre el número de fallecimientos a causa de una determinada enfermedad en un período de tiempo y el número de afectados por esa misma enfermedad en ese mismo período’.
+
+# Diversos titulares en México
+
+![](C:\Users\Gera PC\Documents\CienciaDatos\titulares.jpg)
+
+
+# Sobreestimación de la letalidad. 
+
+\captionsetup[figure]{labelformat=empty}
+![Fuente:bbcmundo.com](C:\Users\Gera PC\Documents\CienciaDatos\sobrestimacion.png){width=70%}
+
+# Factores que varían la letalidad a través de países 
+
+\captionsetup[figure]{labelformat=empty}
+![](C:\Users\Gera PC\Documents\CienciaDatos\diag.png)
+
+# Factores que varían la letalidad- Diferencias entre grupos étnicos.
+
+\captionsetup[figure]{labelformat=empty}
+![Fuente:mayoclinic.org](C:\Users\Gera PC\Documents\CienciaDatos\mayo.JPG)
+
+De acuerdo a los  datos del Centro para el Control y prevencion de Enfermedades de EUA, Existen diferencias entre las minorias étnicas. Los nativos no hispanos tienen un 5.3 veces más probabilidades de hospitalizacion frente a las personas blancas y de 4.7 para latinos y afrodescendientes frente a personas blanca no hispanas.
+
+
+# Diferencias entre indígenas.
+
+\captionsetup[figure]{labelformat=empty}
+![Fuente:www.forbes.com](C:\Users\Gera PC\Documents\CienciaDatos\Indigenas.jpg)
+
+Tomando los datos de la Secretaría de Salud de México, los indígenas tienen la mas alta letalidad por COVID-19 en México, ya que señalan que es del 17.5 % etre las comunidades marginadas.
+
+# Factores que varían la letalidad - Nutrición- 
+
+\captionsetup[figure]{labelformat=empty}
+![](C:\Users\Gera PC\Documents\CienciaDatos\nutricion.png)
+
+
+# Factores que varían la letalidad a través de países- Genética
+
+El SARS-Cov2 para ingresar a nuestras células, se adhiere a una proteína llamada ACE2. Hay variantes genéticas en y cerca del gen ACE2 que podrían afectar su cantidad o función.
+
+\captionsetup[figure]{labelformat=empty}
+![](C:\Users\Gera PC\Documents\CienciaDatos\ACE2.png)
+
+
+
+# Políticas públicas
+
+Movilidad social.
+
+Nueva Zelanda y Taiwán: cerró fronteras antes de una sola muerte relacionada con Covid (dependencia de la economía del turismo). 
+
+Nueva Zelanda, Taiwán y Corea del Sur:Priorizó en la "eliminación" del virus, invirtiendo recursos en pruebas, rastreo efectivo de contagiados y estrategias de cuarentena centralizada para acabar con la transmisión local. 
+
+Infraestructura hospitalaria.
+
+Japón: debido experiencias pasadas, ha mantenido un buen sistema de salud pública. 
+
+
+# Cohesión social (uso de mascarilla)
+
+Japón: Los altos niveles de confianza social, disciplina y cumplimiento significaron que los ciudadanos usaran máscaras y evitaran los lugares concurridos. 
+  
+
+
+# METODOLOGÍA
+
+\captionsetup[figure]{labelformat=empty}
+![](C:\Users\Gera PC\Documents\CienciaDatos\metodologia.png)
+
+
+\scriptsize
+````{r,include=F,eval=T, echo=T} 
+
+url <- "https://www.worldometers.info/coronavirus/"
+web <- xml2::read_html(url)
+dat <- rvest::html_table(web)[[1]]
+names(dat)[1]<-"record"
+dat<-dat[-c(1:8,224:231),-c(17:19)]
+names(dat)<-c("record","Country","TotalCases",
+              "NewCases","TotalDeaths","NewDeaths",
+              "TotalRecovered","NewRecovered","ActiveCases",
+              "SeriosuCritical","Cases_M","Deaths_M",
+              "TotalTests","Tests_M","Population","Continent")
+dat[dat==""]<-NA
+# Eliminar las comas
+dat[-c(1,2,16)]<-apply(dat[-c(1,2,16)],2,function(x)gsub(",","",x)) 
+# Eliminar los +
+dat[-c(1,2,16)]<-apply(dat[-c(1,2,16)],2,function(x)as.numeric(gsub("+","",x))) 
+Lethality <- dat$TotalDeaths / dat$TotalCases * 100 # Calcular letalidad
+dat <- cbind(dat,Lethality) # Agregar letalidad 
+dat<- mutate(dat,LogDeaths_M=log(Deaths_M),
+LogTests_M=log(Tests_M),
+LogLethality=log(Lethality))
+df<- data.frame(dat$Country,dat$LogDeaths_M,dat$LogTests_M,dat$LogLethality,dat$Lethality)
+names(df)<- c("Country","LogDeaths_M","LogTests_M","LogLethality","Lethality")
+``` 
+\normalsize
+# Paises con mayor y menor letalidad estimada.
+
+```{r, include=T}
+
+# Paises con menor letalidad estimada
+t1<- dat %>% select(Country,Lethality) %>% arrange(Lethality) %>% head(10)
+t2 <- dat %>% select(Country,Lethality) %>% arrange(desc(Lethality)) %>% head(10)
+t3 <- data.frame(t1,t2)
+names(t3) <- c("País","Letalidad","País","Letalidad")
+kable(t3)# Paises con menor letalidad estimada
+
+
+```
+
+# Distribución de la letalidad.
+
+```{r}
+# Histograma de Letalidad con ggplot2 
+ggplot(dat,aes(Lethality))+
+  geom_histogram(color="purple", fill="violet")+ 
+  geom_point(size = 3,data=subset(dat,Country %in% c("Mexico","Qatar","Singapore","Burundi","Yemen","Western Sahara")),
+             aes(x=Lethality,y=0,color=Country,
+                 shape=Country,fill=Country))+
+  scale_color_manual(values = c('red','blue','brown','black','green','pink'))+
+  scale_fill_manual(values = c('red','blue','brown','black','green','pink'))+
+  scale_shape_manual(values = rep(22,7))+
+  theme_bw() + 
+  labs(x = "Letalidad",y="Frecuencia", 
+       title="Letalidad Estimada de Covid-19", 
+       subtitle="Fuente:https://www.worldometers.info/coronavirus/",
+       caption="Accesado : 25 de noviembre 2020") 
+
+```
+
+
+# Pruebas por millón de habitantes en el mundo. 
+
+```{r, echo=F}
+# Distribucion de pruebas por millon de habitantes
+ggplot(dat,aes(Tests_M))+
+  geom_histogram(color="blue", fill="skyblue")+ 
+  geom_point(size=3,data=subset(dat,Country %in% c("Mexico","Qatar","Singapore","Burundi","Yemen","Western Sahara")),
+             aes(x=Tests_M,y=0,color=Country,
+                 shape=Country,fill=Country))+
+  scale_color_manual(values = c('red','blue','brown','black','green','pink'))+
+  scale_fill_manual(values = c('red','blue','brown','black','green','pink'))+
+  scale_shape_manual(values = rep(22,6))+
+  theme_bw() + labs(x = "Pruebas x millón de habitantes",
+                    y="Frecuencia", 
+                    title="Distribución de pruebas por millón de habitantes", 
+                    subtitle="Fuente:https://www.worldometers.info/coronavirus/",
+                    caption="Accesado : 25 de noviembre 2020")
+
+```
+
+# Valores medios de letalidad, mortalidad y pruebas por millón en los diferentes continentes.
+
+```{r}
+continentes<- data.frame(dat$Continent,dat$TotalDeaths,dat$Tests_M,dat$Lethality)
+names(continentes)<- c("Continente","Mortalidad","Tests_M","Letalidad")
+continentes<-na.omit(continentes)
+continentes$Continente<-as.factor(continentes$Continente) #convertir a factores
+tabla<- aggregate(cbind(continentes$Mortalidad,continentes$Tests_M,continentes$Letalidad) ~ continentes$Continent, continentes, mean )
+names(tabla) <- c("Continente","Mortalidad","Pruebas por Millón","Letalidad")
+kable(tabla)
+```
+
+# Relación entre letalidad y pruebas por millón de habitantes.
+
+```{r}
+
+ggplot(dat,aes(Tests_M,Lethality))+
+    geom_point(size=3)+
+    geom_smooth(method="lm",size=3,se=FALSE,color="dark green")+
+    
+    labs(title="Diagrama de dispersion de Letalidad x millon de habitantes de COVID-19",
+         subtitle="Source: https://www.worldometers.info/coronavirus/",
+         caption="Accesado : 25 de noviembre 2020")+ theme_bw()
+```
+
+
+# Estimación de la letalidad basada en el número de pruebas.
+
+```{r}
+#Model visualization
+new_df2<-select(dat, c("Country","LogDeaths_M","LogTests_M","LogLethality"))
+model_L<-lm(LogLethality~LogTests_M,dat=new_df2)
+keyCountry<- ifelse(!is.element(new_df2$Country, c("Singapore","Burundi","Qatar","Yemen"," Western Sahara","Mexico")),"Other", new_df2$Country)
+
+new_df2$keyCountry<- keyCountry
+#row.names(new_df2)<-new_df2$Country 
+new_df2<-new_df2[complete.cases(new_df2),] #Solo casos completos
+ggplot(new_df2,aes(LogTests_M,LogLethality,color=keyCountry))+
+	geom_point(size=3)+
+	geom_smooth(method="lm",size=1,se=FALSE,color="dark green")+
+	scale_color_manual(values=c("blue","brown","grey60","red","dark green", "green"))+
+	labs(title="Ajuste lineal de letalidad por COVID19 por millónde pruebas. Gráfico log-log",
+	subtitle="Source: https://www.worldometers.info/coronavirus/",
+	caption="Accessed Nov 23, 2020")+ theme_bw()
+```
+
+# Diagrama de PCA con letalidad, mortalidad y pruebas por millón, en sus versiones logarítmicas.
+
+```{r}
+
+dat<- mutate(dat,LogDeaths_M=log(Deaths_M),
+LogTests_M=log(Tests_M),
+LogLethality=log(Lethality))
+df<- data.frame(dat$Country,dat$LogDeaths_M,dat$LogTests_M,dat$LogLethality,dat$Lethality)
+names(df)<- c("Country","LogDeaths_M","LogTests_M","LogLethality","Lethality")
+
+key<- c("Mexico","Burundi","Yemen","Singapore","Qatar","Western Sahara") #Variable con los paises de interes
+keyCountry<-ifelse(is.element(df$Country,key),df$Country,"Other")
+df<-mutate(df,keyCountry=keyCountry)
+
+
+
+
+pr.out<- prcomp(~LogDeaths_M + LogTests_M + LogLethality, data=df)
+df <- df[complete.cases(df),]
+row.names(df)<-df$Country
+df <- df[complete.cases(df),]
+
+pca_res <- prcomp(~LogDeaths_M + LogTests_M + LogLethality, data=df, scale. = TRUE)
+autoplot(pca_res, data = df, colour = 'keyCountry',size=3,
+         loadings = TRUE, loadings.colour = 'blue',
+         loadings.label = TRUE, loadings.label.size = 4) + theme_bw()+  scale_color_manual(values=c("red","blue","grey60","black","green", "purple"))
+```
+
+
+ 
+
+```{r}
+reg<- lm(df$LogTests_M ~ df$LogLethality)
+df <- mutate(df,LethAd=reg$residuals)
+reg2 <- lm(df$LogTests_M~df$LogDeaths_M)
+df<- mutate(df,DeathAd=reg2$residuals)
+
+
+
+```
+
+
+
+
+
+# PCA de letalidad y mortalidad ajustadas. 
+```{r}
+library(ggplot2)
+new_df<-data.frame(dat[,c(2,18,20)])
+keyCountry<- ifelse(!is.element(new_df$Country, c("Singapore","Burundi","Qatar","Yemen"," Western Sahara","Mexico")),"Other", new_df$Country)
+new_df$keyCountry<- keyCountry
+#Solo casos completos
+new_df<-new_df[complete.cases(new_df),] 
+row.names(new_df)<-new_df$Country 
+cpCovid19<- prcomp(new_df[2:3], scale = TRUE) 
+
+#biplot(cpCovid19, cex=.7, xlim=c(-0.25,0.35))
+library(ggfortify)
+autoplot(cpCovid19, data=new_df,size=3, loadings.label.size=4, colour="keyCountry",
+ loadings=TRUE, xlim=c(-0.3,0.35), ylim=c(-0.28,0.28),loadings.label=TRUE, loadings.colour = "black")+
+  scale_color_manual(values=c("red","blue","grey60","black","green", "purple"))+
+  labs(title="Análisis de componentes principales de letalidad y mortalidad por COVID19",
+	subtitle="Source: https://www.worldometers.info/coronavirus/",
+	caption="Accessed Nov 23, 2020") +  theme_bw()
+#https://cran.r-project.org/web/packages/ggfortify/vignettes/plot_pca.html
+```
+
+
+
+
+
+# Letalidad ajustada eliminando el residual o el efecto del número de pruebas.
+
+```{r}
+df_res<- new_df2 %>% mutate(keyCountry=keyCountry,LogLetAd = resid(model_L))
+#Check Lethality
+ggplot(df_res,aes(LogTests_M,LogLetAd,col=keyCountry))+
+	geom_point(size=3)+
+	scale_color_manual(values=c("red","blue","grey60","black", "dark green", "green"))+
+	geom_smooth(method="lm",size=1,se=FALSE,color="dark green")+
+labs(title="Ajuste lineal de letalidad por COVID19 sin efecto del número de pruebas",
+	subtitle="Source: https://www.worldometers.info/coronavirus/",
+	caption="Accessed Nov 23, 2020") + theme_bw()
+
+model_LethAd <- lm(LogLetAd~LogTests_M, data = df_res)
+``` 
+
+
+
+
+# Predicción de la letalidad. 
+
+La letalidad estimada en México tomando en cuenta el número de pruebas realizadas por millón de personas es de log 15. 
+
+Sin embargo, cuando se estima la letalidad eliminando el residual que equivale a la media del efecto de las pruebas realizadas por millón de personas, la letalidad disminuye al 4.7
+
+Siendo la media mundial de letalidad 0.933
+
+```{r, echo=FALSE}
+#Predicting lethality in Mexico
+#Fit the model
+#dat.mod<-dat[complete.cases(dat[c(18,19,20)]),]
+#mymodel<-lm(LogLethality~LogTests_M,data=dat.mod)
+#max(dat$LogTests_M,na.rm=T) #Maximum LogTest_M
+#Close to 15
+#Predict the Log value for 15
+#predict(mymodel,data.frame(LogTests_M=15))
+#This is equivalent to a base lethality of 
+#exp(predict(mymodel,data.frame(LogTests_M=15)))
+#0.86 %
+#logAdMexico<-mymodel$residuals[dat$Country=="Mexico"] #Adjusted log value for Mexico
+#pred.let.Mex<-exp(logAdMexico+predict(mymodel,data.frame(LogTests_M=15)))
+#pred.let.Mex
+```
+
+
+# Relacion con otras variables. 
+- Consumo de Coca Cola
+- Diabetes
+- Obesidad
+
+```{r}
+setwd("~/CienciaDatos")
+datN<-read.csv("datN.csv",head=T)
+datcoca<-read.csv("datcoca.csv",head=T)
+
+```
+
+# Relación consumo de Coca Cola y Letalidad 
+
+```{r}
+ggplot(datcoca,aes(CocaCola,LogLethality,col=keyCountries))+
+	geom_point(size=3)+
+	scale_color_manual(values=c("red","grey50","blue","green","magenta"))+
+	geom_smooth(method="lm",size=2,se=FALSE,color="dark green")+ 
+  labs(title="Consumo de Coca Cola y Letalidad por CoVID-19, p=.03",
+      subtitle="Source: https://www.worldometers.info/coronavirus/")+ theme_bw()
+modcoca1 <- lm(LogLethality~CocaCola, data = datcoca)
+
+```
+
+# Relación Consumo de Coca Cola y Letalidad Ajustada. 
+
+```{r}
+ggplot(datcoca,aes(CocaCola,LogLetAd,col=keyCountries))+
+	geom_point(size=3)+
+	scale_color_manual(values=c("red","grey50","blue","green","magenta"))+
+	geom_smooth(method="lm",size=2,se=FALSE,color="dark green")+ 
+  labs(title="Consumo de Coca Cola y Letalidad Ajustada por CoVID-19, p=.0008",
+      subtitle="Source: https://www.worldometers.info/coronavirus/")+ theme_bw()
+
+
+modcoca<-lm(LogLetAd~CocaCola,data=datcoca)
+```
+
+
+# Relación obesidad y letalidad. 
+
+```{r}
+ggplot(datN,aes(BMI,LogLethality,col=keyCountries))+
+	geom_point(size=3)+
+	scale_color_manual(values=c("red","grey50","blue","green","magenta"))+
+	geom_smooth(method="lm",size=2,se=FALSE,color="dark green")+ 
+    labs(title="Obesidad  y Letalidad por CoVID-19, p=.1593",
+         subtitle="Source: https://www.worldometers.info/coronavirus/")+ theme_bw()
+
+
+modcheckOb2<-lm(LogLethality~BMI,data=datN)
+
+```
+
+# Relación obesidad y letalidad ajustada.
+
+```{r}
+ggplot(datN,aes(BMI,LogLetAd,col=keyCountries))+
+	geom_point(size=3)+
+	scale_color_manual(values=c("red","grey50","blue","green","magenta"))+
+	geom_smooth(method="lm",size=2,se=FALSE,color="dark green")+ 
+    labs(title="Obesidad  y Letalidad ajustada por CoVID-19, p=9.087e-05",
+         subtitle="Source: https://www.worldometers.info/coronavirus/")+ theme_bw()
+
+modcheckOb<-lm(LogLetAd~BMI,data=datN)
+``` 
+
+# Relación diabetes y letalidad
+
+```{r}
+modcheckDia1<-lm(LogLethality~Diabetes,data=datN)
+
+ggplot(datN,aes(Diabetes,LogLethality,col=keyCountries))+
+	geom_point(size=3)+
+  scale_color_manual(values=c("red","grey50","blue","green","magenta"))+
+	geom_smooth(method="lm",size=2,se=FALSE,color="dark green")+ 
+    labs(title="Diabetes  y Letalidad por CoVID-19, p = .91",
+         subtitle="Source: https://www.worldometers.info/coronavirus/")+ theme_bw()
+
+
+```
+
+# Relación diabetes y letalidad ajustada
+
+```{r}
+modcheckDia<-lm(LogLetAd~Diabetes,data=datN)
+
+ggplot(datN,aes(Diabetes,LogLetAd,col=keyCountries))+
+	geom_point(size=3)+
+  scale_color_manual(values=c("red","grey50","blue","green","magenta"))+
+	geom_smooth(method="lm",size=2,se=FALSE,color="dark green")+ 
+    labs(title="Diabetes  y Letalidad ajustada por CoVID-19,p=.45",
+         subtitle="Source: https://www.worldometers.info/coronavirus/")+ theme_bw()
+
+
+```
+
+# ¿Qué relación hay entre la letalidad y la resiliencia?
+
+Donde el índice de resiliencia se mide en:
+
+- COVID19 estatus
+Casos por 100,000 habitantes
+Muertes totales por 1 millón 
+Tasa de positividad (prueba de COVID19)
+Acceso a la vacuna 
+
+ - Calidad de vida
+Severidad del encierro
+Movilidad de la comunidad
+PIB crecimiento previsto 2020
+Cobertura de salud universal
+Índice de desarrollo humano (esperanza de vida, acceso a la educación y ingreso per capita)
+
+
+```{r}
+setwd("~/CienciaDatos")
+resiliencia <- read.csv("resiliencia.csv", header=T) 
+res_let<-merge(resiliencia, df_res, by = intersect(names(resiliencia), names(df_res))) 
+res_let$Country<-as.character(res_let$Country) 
+keyCountries<- ifelse(!is.element(res_let$Country, c("New Zealand","Japan","Taiwan","Singapore","Mexico","Argentina","Peru")),"Other", res_let$Country)
+res_let$keyCountry<- keyCountries
+```
+
+
+# Existe relación de la letalidad y el índice de resiliencia a través de los países
+
+```{r}
+ggplot(res_let,aes( LogLethality,Resiliencia, color=keyCountry))+
+	geom_point(size=3)+
+	geom_smooth(method="lm",size=1,se=FALSE,color="dark green")+
+	scale_color_manual(values=c("blue","brown","red","black", "grey60","green", "orange","purple"))+
+	labs(title="Regresión lineal de letalidad y resiliencia al COVID19. Gráfico log-log",
+	subtitle="Source: worldometers.info/coronavirus/ |  bloomberg.com/graphics/covid-resilience-ranking/#ranking",
+	caption="Accessed Nov 25, 2020") +theme_bw()
+```
+
+
+
+# Letalidad sin residual. 
+
+
+```{r}
+resi_lm <- lm(Resiliencia~LogLetAd, data=res_let)
+res_let$LogResiliencia<-log(res_let$Resiliencia)
+ggplot(res_let,aes(LogLetAd, LogResiliencia, col=keyCountry))+
+	geom_point(size=3)+
+	scale_color_manual(values=c("red","blue","black", "dark green","grey60", "green","orange", "purple"))+
+	geom_smooth(method="lm",size=1,se=FALSE,color="dark green")+
+labs(title="Ajuste lineal de letalidad por COVID19 sin efecto de resiliencia, p=.003",
+	subtitle="Source: worldometers.info/coronavirus/ |  bloomberg.com/graphics/covid-resilience-ranking/#ranking",
+	caption="Accessed Nov 25, 2020") +theme_bw() 
+```
+
+
+# Diagrama de Correlaciones 
+
+```{r}
+corrplot(cor(datN[c(2,20,26,28)],use="pairwise.complete.obs"),method="ellipse")
+```
+
+# Modelo grafico de visualizacion.
+
+```{r}
+qgraph(cor(datN[c(2,20,26,28)],use="pairwise.complete.obs"))
+```
+
+
+
+# Conclusiones Finales
+- Existe relación entre letalidad y número de pruebas realizadas de COVID19.
+
+- La relación entre la obesidad y la letalidad se puede observar gracias a la eliminación del efecto numero de pruebas.
+
+- La variación de países en cuanto al numero de pruebas afecta en gran medida a la estimación de la letalidad.
